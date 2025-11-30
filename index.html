@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Multi-Simulator: SLCM Easy / Hard / Match</title>
+<title>Multi-Simulator: SLCM Easy / Hard / Match / Clasificare </title>
 <style>
   :root{--card-bg:#fff;--ui-bg:#f4f6f8;--accent:#1f6feb}
   body{font-family:Arial,Helvetica,sans-serif;background:var(--ui-bg);margin:0;padding:24px}
@@ -39,6 +39,8 @@
       <button class="bigbtn" onclick="showMode('easy')">SLCM Easy</button>
       <button class="bigbtn" onclick="showMode('hard')">SLCM Hard</button>
       <button class="bigbtn" onclick="showMode('match')">Match grupe muniții</button>
+      <button class="bigbtn" onclick="startCLASS()">Clasificare</button>
+     
     </div>
     <div style="text-align:center;margin-top:8px;color:#444">
       Fiecare modul funcționează offline — apasă butonul dorit ca să începi.
@@ -88,6 +90,26 @@
       <div id="hard_answers" style="margin-top:12px"></div>
     </div>
   </div>
+
+  <!--======================-->
+<!--  MODUL 4: CLASIFICARE -->
+<!--======================-->
+<div id="modeCLASS" style="display:none;">
+  <h2>Clasificare – întrebări pe sub-clase</h2>
+
+  <h3 id="classQuestion">Apasă HIT ME pentru a începe!</h3>
+
+  <div id="classArea" style="display:none;"></div>
+
+  <div style="margin-top:20px;">
+    <button onclick="checkCLASS()">Verifică</button>
+    <button onclick="classNext()">HIT ME</button>
+    <button onclick="stopCLASS()">STOP</button>
+  </div>
+
+  <h3 id="classScore"></h3>
+</div>
+
 
   <!-- MATCH MODE -->
   <div id="matchMode" class="card hidden">
@@ -281,8 +303,29 @@ const easy_data = [
     ]
   },
   {
+    q: "Printre elementele pe care SLI le cuprinde se enumeră:",
+    T: [
+      "planificarea mentenanţei.",
+      "aprovizionarea.",
+      "personalul.",
+      "echipamente de testare şi suport.",
+      "managementul configuraţiei.",
+      "informaţii şi date tehnice.",
+      "instruire şi susţinerea instruirii.",
+      "facilităţi şi infrastructură.",
+      "împachetare, manipulare, depozitare, transport."
+    ],
+    F: [
+        "analiza de suport logistic.",
+        "costul.",
+        "managementul fluxului informațional.",
+        "profilul operațional."
+    ]
+  },
+  {
     q: "Printre elementele pe care SLI le cuprinde nu se enumeră:",
-    T: ["analiza de suport logistic.",
+    T: [
+        "analiza de suport logistic.",
         "costul.",
         "managementul fluxului informațional.",
         "profilul operațional."
@@ -445,6 +488,26 @@ const hard_data = [
     ]
   },
   {
+    q: "Printre elementele pe care SLI le cuprinde se enumeră:",
+    T: [
+      "planificarea mentenanţei.",
+      "aprovizionarea.",
+      "personalul.",
+      "echipamente de testare şi suport.",
+      "managementul configuraţiei.",
+      "informaţii şi date tehnice.",
+      "instruire şi susţinerea instruirii.",
+      "facilităţi şi infrastructură.",
+      "împachetare, manipulare, depozitare, transport."
+    ],
+    F: [
+        "analiza de suport logistic.",
+        "costul.",
+        "managementul fluxului informațional.",
+        "profilul operațional."
+    ]
+  },
+  {
     q: "Printre elementele pe care SLI le cuprinde nu se enumeră:",
     T: ["analiza de suport logistic.",
         "costul.",
@@ -549,6 +612,57 @@ const match_groups = [
      }
    ];
 
+// MODUL 4 - CLASIFICARE
+
+const CLASS_DATA = [
+  {
+    master: "Clasificarea mărfurilor periculoase se face pe clase, astfel:",
+    items: [
+      { sub: "Clasa 1", correct: "Explozivi" },
+      { sub: "Clasa 2", correct: "Gaze (comprimate, lichefiate sau dizolvate, sub presiune)" },
+      { sub: "Clasa 3", correct: "Lichide inflamabile" },
+      { sub: "Clasa 4", correct: "Substanțe solide inflamabile" },
+      { sub: "Clasa 5", correct: "Substanțe oxidante și peroxizi organici" },
+      { sub: "Clasa 6", correct: "Substanțe toxic-otrăvitoare și infecțioase" },
+      { sub: "Clasa 7", correct: "Materiale radioactive" },
+      { sub: "Clasa 8", correct: "Substanțe corozive" },
+      { sub: "Clasa 9", correct: "Diverse substanțe și articole periculoase" }
+    ],
+    options: [
+      "Explozivi",
+      "Gaze (comprimate, lichefiate sau dizolvate, sub presiune)",
+      "Lichide inflamabile",
+      "Substanțe solide inflamabile",
+      "Substanțe oxidante și peroxizi organici",
+      "Substanțe toxic-otrăvitoare și infecțioase",
+      "Materiale radioactive",
+      "Substanțe corozive",
+      "Diverse substanțe și articole periculoase"
+    ]
+  },
+
+  {
+    master: "Subdiviziunile clasei 1 sunt:",
+    items: [
+      { sub: "Sub-clasa 1.1", correct: "Substanțe sau articole (muniții) care prezintă riscul de explozie în masă" },
+      { sub: "Sub-clasa 1.2", correct: "Substanțe sau articole (muniții) care prezintă risc de proiecție de fragmente dar fără risc de explozie în masă" },
+      { sub: "Sub-clasa 1.3", correct: "Substanțe sau articole care prezintă fie risc de incendiu, fie risc minor de explozie, fie risc minor de proiecție de fragmente sau ambele riscuri dar fără risc de explozie în masă" },
+      { sub: "Sub-clasa 1.4", correct: "Substanțe sau articole (muniții) care prezintă un risc nesemnificativ" },
+      { sub: "Sub-clasa 1.5", correct: "Substanțe sau articole (muniții) insensibile dar cu risc de explozie în masă" },
+      { sub: "Sub-clasa 1.6", correct: "Substanțe sau articole (muniții) extrem de insensibile și fără risc de explozie în masă" }
+    ],
+    options: [
+      "Substanțe sau articole (muniții) care prezintă riscul de explozie în masă",
+      "Substanțe sau articole (muniții) care prezintă risc de proiecție de fragmente dar fără risc de explozie în masă",
+      "Substanțe sau articole care prezintă fie risc de incendiu, fie risc minor de explozie, fie risc minor de proiecție de fragmente sau ambele riscuri dar fără risc de explozie în masă",
+      "Substanțe sau articole (muniții) care prezintă un risc nesemnificativ",
+      "Substanțe sau articole (muniții) insensibile dar cu risc de explozie în masă",
+      "Substanțe sau articole (muniții) extrem de insensibile și fără risc de explozie în masă"
+    ]
+  }
+];
+
+
 /* =========================
    Utility: shuffle (shared)
    ========================= */
@@ -620,6 +734,15 @@ function easy_generateTest(){
   easy_score = 0; easy_total = 0;
   document.getElementById('easy_score').innerText = '';
 }
+
+function hideAllModes(){
+  document.getElementById('easyMode').classList.add('hidden');
+  document.getElementById('hardMode').classList.add('hidden');
+  document.getElementById('matchMode').classList.add('hidden');
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('modeCLASS').style.display = "none";
+}
+
 
 function easy_loadQuestions(questions){
   const container = document.getElementById('easy_testArea');
@@ -734,6 +857,96 @@ function hard_checkAnswer(){
 
 function hard_stop(){
   document.getElementById('hard_score').innerHTML = `<b>Scor final: ${hard_score} / ${hard_total}</b>`;
+}
+
+//---------------------------------------
+// LOGICĂ – MODUL CLASIFICARE
+//---------------------------------------
+
+let class_score = 0;
+let class_total = 0;
+let class_currentMaster = null;
+let class_currentItem = null;
+let class_options = [];
+
+function startCLASS() {
+  hideAllModes();
+  document.getElementById("modeCLASS").style.display = "block";
+  resetCLASS();
+}
+
+function resetCLASS() {
+  class_score = 0;
+  class_total = 0;
+  document.getElementById("classScore").innerHTML = "";
+  document.getElementById("classQuestion").innerHTML = "Apasă HIT ME!";
+  document.getElementById("classArea").innerHTML = "";
+}
+
+function classNext() {
+  document.getElementById("classArea").style.display = "block";
+
+  // alege întrebarea master
+  class_currentMaster = CLASS_DATA[Math.floor(Math.random() * CLASS_DATA.length)];
+
+  // shuffle la sub-întrebări
+  const shuffledItems = shuffle([...class_currentMaster.items]);
+  class_currentItem = shuffledItems[0];
+
+  // shuffle opțiuni
+  class_options = shuffle([...class_currentMaster.options]);
+
+  document.getElementById("classQuestion").innerHTML =
+    `<b>${class_currentMaster.master}</b><br><br>${class_currentItem.sub}`;
+
+  let html = "";
+  class_options.forEach((opt, i) => {
+    html += `
+      <label>
+        <input type="radio" name="classOpt" value="${opt}">
+        ${opt}
+      </label><br>
+    `;
+  });
+
+  document.getElementById("classArea").innerHTML = html;
+}
+
+
+function checkCLASS() {
+  const selected = document.querySelector('input[name="classOpt"]:checked');
+
+  if (!selected) {
+    alert("Alege un răspuns!");
+    return;
+  }
+
+  const correct = class_currentItem.correct;
+  class_total++;
+
+  let labels = document.querySelectorAll("#classArea label");
+
+  labels.forEach(label => {
+    if (label.innerText.trim() === correct) {
+      label.style.fontWeight = "bold";
+      label.style.color = "green";
+    }
+  });
+
+  if (selected.value === correct) {
+    class_score++;
+  } else {
+    document.getElementById("modeCLASS").classList.add("incorrect");
+    setTimeout(() => document.getElementById("modeCLASS").classList.remove("incorrect"), 900);
+  }
+
+  document.getElementById("classScore").innerHTML =
+    `Scor: ${class_score} / ${class_total}`;
+}
+
+function stopCLASS() {
+  document.getElementById("classScore").innerHTML =
+    `<b>Scor final: ${class_score} / ${class_total}</b>`;
 }
 
 /* ======================================================
