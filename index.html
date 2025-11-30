@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multi-Simulator: SLCM Easy / Hard / Match</title>
+<style>
+  :root{--card-bg:#fff;--ui-bg:#f4f6f8;--accent:#1f6feb}
+  body{font-family:Arial,Helvetica,sans-serif;background:var(--ui-bg);margin:0;padding:24px}
+  .container{max-width:980px;margin:0 auto}
+  h1{text-align:center;margin:6px 0 18px}
+  .menu{display:flex;gap:14px;justify-content:center;margin-bottom:18px}
+  .bigbtn{background:var(--accent);color:#fff;padding:14px 22px;border-radius:10px;border:0;font-size:18px;cursor:pointer}
+  .card{background:var(--card-bg);padding:20px;border-radius:10px;border:1px solid #d0d7de;box-shadow:0 2px 10px rgba(15,23,42,0.03)}
+  .hidden{display:none}
+  .smallbtn{padding:8px 12px;margin:6px;font-size:15px;cursor:pointer}
+  .question{margin:14px 0;padding:12px;border-radius:8px;border:1px solid #e1e6eb;background:#fff}
+  .incorrect{background:rgba(255,0,0,0.18) !important}
+  .correct-answer{font-weight:700;color:green}
+  label{display:block;margin:8px 0}
+  select,input[type=radio],input[type=checkbox]{margin-right:8px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .backbtn{background:#6c757d;color:#fff;padding:8px 12px;border-radius:6px;border:0;cursor:pointer}
+  .status{font-weight:600}
+  footer{margin-top:18px;text-align:center;color:#666;font-size:13px}
+  @media (max-width:640px){.menu{flex-direction:column;align-items:center}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Multi-Simulator (SLCM Easy / Hard / Match)</h1>
+
+  <!-- MENU -->
+  <div id="menu" class="card">
+    <div style="text-align:center;margin:8px 0 16px">
+      Alege modul:
+    </div>
+    <div class="menu">
+      <button class="bigbtn" onclick="showMode('easy')">SLCM Easy</button>
+      <button class="bigbtn" onclick="showMode('hard')">SLCM Hard</button>
+      <button class="bigbtn" onclick="showMode('match')">Match grupe muniții</button>
+    </div>
+    <div style="text-align:center;margin-top:8px;color:#444">
+      Fiecare modul funcționează offline — apasă butonul dorit ca să începi.
+    </div>
+  </div>
+
+  <!-- EASY MODE -->
+  <div id="easyMode" class="card hidden">
+    <div class="topbar">
+      <button class="backbtn" onclick="backToMenu()">← Meniu</button>
+      <div class="status">SLCM — EASY</div>
+      <div></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <label><b>Alege numărul de întrebări:</b>
+        <select id="easy_numQuestions" style="padding:6px 8px;font-size:14px">
+          <option value="10">10 întrebări</option>
+          <option value="18">18 întrebări</option>
+        </select>
+      </label>
+      <button class="smallbtn" onclick="easy_generateTest()">Generează test nou</button>
+      <button class="smallbtn" onclick="easy_gradeTest()">Verifică răspunsurile</button>
+      <span id="easy_score" style="margin-left:12px;font-weight:700"></span>
+    </div>
+
+    <div id="easy_testArea"></div>
+  </div>
+
+  <!-- HARD MODE -->
+  <div id="hardMode" class="card hidden">
+    <div class="topbar">
+      <button class="backbtn" onclick="backToMenu()">← Meniu</button>
+      <div class="status">SLCM — HARD (0–5 răspunsuri corecte)</div>
+      <div></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <button class="smallbtn" onclick="hard_nextQuestion()">HIT ME</button>
+      <button class="smallbtn" onclick="hard_checkAnswer()">Verifică</button>
+      <button class="smallbtn" onclick="hard_stop()">STOP</button>
+      <span id="hard_score" style="margin-left:12px;font-weight:700"></span>
+    </div>
+
+    <div id="hard_qbox">
+      <h3 id="hard_qtext">Apasă HIT ME pentru a începe</h3>
+      <div id="hard_answers" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- MATCH MODE -->
+  <div id="matchMode" class="card hidden">
+    <div class="topbar">
+      <button class="backbtn" onclick="backToMenu()">← Meniu</button>
+      <div class="status">Match — Grupe muniții</div>
+      <div></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <button class="smallbtn" onclick="match_nextQuestion()">HIT ME</button>
+      <button class="smallbtn" onclick="match_checkAnswer()">Verifică</button>
+      <button class="smallbtn" onclick="match_stop()">STOP</button>
+      <span id="match_score" style="margin-left:12px;font-weight:700"></span>
+    </div>
+
+    <div id="match_box">
+      <h3 id="match_qtitle">Apasă HIT ME pentru a începe</h3>
+
+      <div id="match_taskArea" style="display:none">
+        <div style="margin-top:10px">
+          <b>Denumirea grupei:</b><br>
+          <select id="match_pickName"></select>
+        </div>
+
+        <div style="margin-top:10px">
+          <b>Exemple:</b>
+          <div id="match_exampleList"></div>
+        </div>
+
+        <div style="margin-top:10px">
+          <b>Grupe compatibile:</b>
+          <div id="match_compatList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Versiune combinată • offline • pregătit pentru GitHub Pages
+  </footer>
+</div>
+
+<script>
+/* =========================
+   Data declarations
+   ========================= */
+
+/* ----------------------
+   EASY data (T/F arrays)
+   (This comes from your original EASY file — keep / edit as you like)
+   ---------------------- */
+const easy_data = [
+  {
+    q: "Ciclul de viaţă al unui echipament/sistem militar reprezintă:",
+    T: ["evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu."],
+    F: [
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare.",
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la finalul etapei de operare și suport.",
+      "procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un concept modern de organizare a mentenanţei, care se fundamentează pe un proces dinamic, sistematic, de identificare a nevoilor echipamentelor militare.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "SLCM reprezintă:",
+    T: ["totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",],
+    F: [
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat, mentenanța centrată pe fiabilitate şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "SLI reprezintă:",
+    T: ["procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate pentru întreg ciclul de viaţă al acestuia şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului."],
+    F: [
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un concept modern de organizare a mentenanţei, care se fundamentează pe un proces dinamic, sistematic, de identificare a nevoilor echipamentelor militare.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "Scopul principal al SLCM este:",
+    T: ["utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare."],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri. ",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ]
+  },
+  {
+    q: "Printre cele mai importante obiective ale SLCM nu se enumeră:",
+    T: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător."
+    ]
+  },
+  {
+    q: "Printre cele mai importante obiective ale SLCM se enumeră:",
+    T: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător."
+    ],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ]
+  },
+  {
+    q: "Procesul de planificare SLI al echipamentelor militare se iniţiază înainte de intrarea de înzestrare a acestora şi se asigură continuu pe DCV, pentru:",
+    T: [
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător.",
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare."
+    ]
+  },
+  {
+    q: "Scopul principal al SLI este:",
+    T: ["obţinerea disponibilităţii necesare a sistemului la un cost minim pe ciclul de viaţă."],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri. ",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV.",
+      "includerea elementelor SLI, în termeni de parametri măsurabili de performanţă, la emiterea cerinţelor şi în planificarea achiziţiei echipamentelor/sistemelor militare."
+    ]
+  },
+  {
+    q: "Printre obiectivele pe care SLI urmăreşte să le realizeze se enumeră:",
+    T: [
+      "includerea elementelor SLI, în termeni de parametri măsurabili de performanţă, la emiterea cerinţelor şi în planificarea achiziţiei echipamentelor/sistemelor militare.",
+      "definirea şi proiectarea sistemului de SLI.",
+      "stabilirea sistemului de SLI.",
+      "menţinerea sistemului de SLI pe DCV al echipamentului."
+    ],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV.",
+      "obţinerea disponibilităţii necesare a sistemului la un cost minim pe ciclul de viaţă."
+    ]
+  },
+  {
+    q: "Printre elementele pe care SLI le cuprinde nu se enumeră:",
+    T: ["analiza de suport logistic.",
+        "costul.",
+        "managementul fluxului informațional.",
+        "profilul operațional."
+      ],
+    F: [
+      "planificarea mentenanţei.",
+      "aprovizionarea.",
+      "personalul.",
+      "echipamente de testare şi suport.",
+      "managementul configuraţiei.",
+      "informaţii şi date tehnice.",
+      "instruire şi susţinerea instruirii.",
+      "facilităţi şi infrastructură.",
+      "împachetare, manipulare, depozitare, transport."
+    ]
+  }
+];
+/* ----------------------
+   HARD data (formatul T / F): se extrag 5 variante per întrebare (0–5 corecte)
+   (Completează/editează după preferințe)
+   ---------------------- */
+const hard_data = [
+  {
+    q: "Ciclul de viaţă al unui echipament/sistem militar reprezintă:",
+    T: ["evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu."],
+    F: [
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare.",
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la finalul etapei de operare și suport.",
+      "procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un concept modern de organizare a mentenanţei, care se fundamentează pe un proces dinamic, sistematic, de identificare a nevoilor echipamentelor militare.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "SLCM reprezintă:",
+    T: ["totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",],
+    F: [
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat, mentenanța centrată pe fiabilitate şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "SLI reprezintă:",
+    T: ["procesul tehnic şi de management prin intermediul căruia nevoile de susţinere logistică şi financiară ale unui sistem sunt identificate pentru întreg ciclul de viaţă al acestuia şi integrate în conţinutul programului de dezvoltare/achiziţie, de la iniţierea programului şi până la scoaterea din serviciu a sistemului."],
+    F: [
+      "totalitatea activităţilor/proceselor desfăşurate pentru optimizarea capabilităţilor de apărare ţinând cont de performanţa, costul, planificarea, calitatea, mediul operaţional, suportul logistic integrat şi uzura fizică/morală asociate unor sisteme/echipamente militare, pe parcursul întregului ciclu de viaţă al acestora.",
+      "evoluţia echipamentului / sistemului de la iniţierea programului până la retragerea din serviciu.",
+      "conceptul fundamental care stă la baza organizării şi funcţionării sistemului militar de mentenanţă din Armata României.",
+      "un concept modern de organizare a mentenanţei, care se fundamentează pe un proces dinamic, sistematic, de identificare a nevoilor echipamentelor militare.",
+      "un ansamblu de măsuri şi activităţi care contribuie la creşterea nivelului stării tehnice a echipamentelor."
+    ]
+  },
+  {
+    q: "Scopul principal al SLCM este:",
+    T: ["utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare."],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri. ",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ]
+  },
+  {
+    q: "Printre cele mai importante obiective ale SLCM nu se enumeră:",
+    T: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător."
+    ]
+  },
+  {
+    q: "Printre cele mai importante obiective ale SLCM se enumeră:",
+    T: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător."
+    ],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ]
+  },
+  {
+    q: "Procesul de planificare SLI al echipamentelor militare se iniţiază înainte de intrarea de înzestrare a acestora şi se asigură continuu pe DCV, pentru:",
+    T: [
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV."
+    ],
+    F: [
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "reducerea impactului echipamentelor militare/sistemelor asupra mediului înconjurător.",
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare."
+    ]
+  },
+  {
+    q: "Scopul principal al SLI este:",
+    T: ["obţinerea disponibilităţii necesare a sistemului la un cost minim pe ciclul de viaţă."],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri. ",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV.",
+      "includerea elementelor SLI, în termeni de parametri măsurabili de performanţă, la emiterea cerinţelor şi în planificarea achiziţiei echipamentelor/sistemelor militare."
+    ]
+  },
+  {
+    q: "Printre obiectivele pe care SLI urmăreşte să le realizeze se enumeră:",
+    T: [
+      "includerea elementelor SLI, în termeni de parametri măsurabili de performanţă, la emiterea cerinţelor şi în planificarea achiziţiei echipamentelor/sistemelor militare.",
+      "definirea şi proiectarea sistemului de SLI.",
+      "stabilirea sistemului de SLI.",
+      "menţinerea sistemului de SLI pe DCV al echipamentului."
+    ],
+    F: [
+      "utilizarea şi menţinerea cu maximă eficienţă a capabilităţilor necesare pentru apărare.",
+      "crearea unui set de practici integrate şi unitare de management pornind de la etapa de stabilire a nevoilor pentru îndeplinirea unei misiuni şi până la scoaterea din serviciu.",
+      "stabilirea unui cadru de colaborare, cu linii clare de responsabilitate, pentru toţi factorii implicaţi în dezvoltarea/achiziţia/utilizarea unui sistem.",
+      "aplicarea abordării integrate a sistemelor pentru reducerea timpului, a costurilor şi maximizarea disponibilităţii.",
+      "dezvoltarea/achiziţia unor echipamente/sisteme care îndeplinesc cerinţele operaţionale şi sunt sustenabile la nivelul logisticii de susţinere.",
+      "utilizarea eficientă a echipamentelor pe DCV, la un raport optim între performanţele operaţionale şi costuri.",
+      "realizarea unui echilibru stabil, pe termen lung, între cerinţele specifice ale profilului operaţional vizat şi condiţionările pe linia susţinerii financiare a programului.",
+      "asigurarea unui nivel ridicat şi predictibil de disponibilitate a echipamentelor militare.",
+      "stabilirea, planificarea şi asigurarea resurselor necesare realizării suportului logistic al echipamentelor pe DCV.",
+      "obţinerea disponibilităţii necesare a sistemului la un cost minim pe ciclul de viaţă."
+    ]
+  },
+  {
+    q: "Printre elementele pe care SLI le cuprinde nu se enumeră:",
+    T: ["analiza de suport logistic.",
+        "costul.",
+        "managementul fluxului informațional.",
+        "profilul operațional."
+        ],
+    F: [
+      "planificarea mentenanţei.",
+      "aprovizionarea.",
+      "personalul.",
+      "echipamente de testare şi suport.",
+      "managementul configuraţiei.",
+      "informaţii şi date tehnice.",
+      "instruire şi susţinerea instruirii.",
+      "facilităţi şi infrastructură.",
+      "împachetare, manipulare, depozitare, transport."
+    ]
+  }
+];
+
+/* ----------------------
+   MATCH groups (grupele munițiilor) — folosește/editează după nevoi
+   ---------------------- */
+const match_groups = [
+     {
+       letter: "A",
+       name: "Explozivi primari",
+       examples: ["Fulminatul de mercur", "azida de plumb", "stifnatul de plumb", "tetracen", "RDX uscat", "PETN uscat"],
+       compatible: ["A"]
+     },
+     {
+       letter: "B",
+       name: "Articole ce contin un exploziv primar și nu sunt prevăzute cu două sau mai multe sisteme de siguranta",
+       examples: ["detonatori", "capse detonante", "capse de aprindere pentru munitia de calibru mic", "focoase fara siguranta"],
+       compatible: ["B", "C", "D", "E", "F", "G", "S"]
+     },
+     {
+       letter: "C",
+       name: "Propelanti, substante energetice ce deflagreaza sau articole ce contin astfel de substante",
+       examples: ["pulberi cu baza simpla", "pulberi cu baza dubla", "pulberi cu baza tripla", "pulberi compozite", "motoare racheta cu combustibil solid", "munitii cu proiectil inert"],
+       compatible: ["B", "C", "D", "E", "F", "G", "N", "S"]
+     },     
+     {
+       letter: "D",
+       name: "Explozivi secundari (brizanti) si articole ce contin astfel de explozivi, dar fara a fi prevazute cu mijloace de initiere si fara incarcatura de azvarlire",
+       examples: ["TNT vrac", "Compozitie B vrac", "RDX umed", "bombe", "proiectile", "componente de lupta", "focoase prevazute cu cel putin doua sisteme de siguranta"],
+       compatible: ["B", "C", "D", "E", "F", "G", "N", "S"]
+     },
+     {
+       letter: "E",
+       name: "Articole ce contin explozivi brizanti, dar fara a fi prevazute cu mijloace de initiere si prevazute cu incarcatura de azvarlire",
+       examples: ["lovituri de artilerie", "proiectile reactive nedirijate", "rachete"],
+       compatible: ["B", "C", "D", "E", "F", "G", "N", "S"]
+     },
+     {
+       letter: "F",
+       name: "Articole ce contin explozivi brizanti si sunt prevazute cu mijloace de initiere si incarcatura de azvarlire",
+       examples: ["PG7", "PG9"],
+       compatible: ["B", "C", "D", "E", "F", "G", "S"]
+     },
+     {
+       letter: "G",
+       name: "Substante pirotehnice, articole ce contin substante pirotehnice",
+       examples: ["munitii de iluminare", "munitii incendiare", "munitii de fumizare", "munitii de consternare"],
+       compatible: ["B", "C", "D", "E", "F", "G", "S"]
+     },
+     {
+       letter: "H",
+       name: "Articole ce contin substante explozive si fosfor alb",
+       examples: ["fosfor alb", "fosfor alb plasticizat", "munitii cu fosfor alb"],
+       compatible: ["H", "S"]
+     },
+     {
+       letter: "J",
+       name: "Munitii ce contin substante explozive si lichide sau geluri inflamabile",
+       examples: ["munitii incendiare cu lichide sau geluri inflamabile"],
+       compatible: ["J", "S"]
+     },
+     {
+       letter: "K",
+       name: "Articole ce contin substante explozive si agenti chimici toxici",
+       examples: ["lovituri de artilerie sau bombe de aruncator (cu sau fara focos), grenade, PRND-uri sau bombe incarcate cu agenti chimici de incapacitare"],
+       compatible: ["K"]
+     },
+     {
+       letter: "L",
+       name: "Substante explozive sau articole ce contin substante explozive si care prezinta riscuri ce fac necesara izolarea",
+       examples: ["combustibili lichizi pentru motoarele racheta pre-ambalati", "TPA", "munitii deteriorate sau suspecte de orice fel"],
+       compatible: ["L"]
+     },
+     {
+       letter: "N",
+       name: "Munitii din sub-clasa 1.6 ce contin doar substante explozive (detonante) extrem de insensibile",
+       examples: ["bombe si componente de lupta"],
+       compatible: ["C", "D", "E", "N", "S"]
+     },
+     {
+       letter: "S",
+       name: "Substante sau articole ambalate sau proiectate in asa maniera incat orice functionare accidentala va fi limitata la nivelul ambalajului",
+       examples: ["cartuse de calibru mic normale", "valve sau comutatori cu explozivi"],
+       compatible: ["B", "C", "D", "E", "F", "G", "H", "J", "N", "S"]
+     }
+   ];
+
+/* =========================
+   Utility: shuffle (shared)
+   ========================= */
+function shuffle(arr){
+  return arr.map(v => ({v, r: Math.random()})).sort((a,b)=>a.r-b.r).map(o=>o.v);
+}
+
+/* =========================
+   UI helpers: menu / navigation
+   ========================= */
+function showMode(mode){
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('easyMode').classList.add('hidden');
+  document.getElementById('hardMode').classList.add('hidden');
+  document.getElementById('matchMode').classList.add('hidden');
+
+  if(mode==='easy') {
+    document.getElementById('easyMode').classList.remove('hidden');
+    easy_updateScore(); // clear
+  } else if(mode==='hard') {
+    document.getElementById('hardMode').classList.remove('hidden');
+    hard_reset();
+  } else if(mode==='match') {
+    document.getElementById('matchMode').classList.remove('hidden');
+    match_reset();
+  }
+}
+function backToMenu(){
+  document.getElementById('menu').classList.remove('hidden');
+  document.getElementById('easyMode').classList.add('hidden');
+  document.getElementById('hardMode').classList.add('hidden');
+  document.getElementById('matchMode').classList.add('hidden');
+}
+
+/* ======================================================
+   EASY module (namespaced functions & vars)
+   ====================================================== */
+let easy_score = 0;
+let easy_total = 0;
+
+function easy_updateScore(){
+  document.getElementById('easy_score').innerText = '';
+  document.getElementById('easy_testArea').innerHTML = '';
+  easy_score = 0; easy_total = 0;
+}
+
+function easy_generateTest(){
+  const container = document.getElementById('easy_testArea');
+  container.innerHTML = '';
+  const num = parseInt(document.getElementById('easy_numQuestions').value,10);
+
+  // pick set (create finalSet similarly to previous logic)
+  if(num === 10){
+    const questions = shuffle([...easy_data]).slice(0,10);
+    easy_loadQuestions(questions);
+  } else {
+    // 18: create variations from T items as before
+    let finalSet = [];
+    easy_data.forEach(q=>{
+      const possible = shuffle([...q.T]);
+      const maxCopies = Math.min(possible.length, 3);
+      for(let i=0;i<maxCopies;i++){
+        finalSet.push({ q: q.q, T: [possible[i]], F: q.F });
+      }
+    });
+    finalSet = shuffle(finalSet).slice(0,18);
+    easy_loadQuestions(finalSet);
+  }
+  easy_score = 0; easy_total = 0;
+  document.getElementById('easy_score').innerText = '';
+}
+
+function easy_loadQuestions(questions){
+  const container = document.getElementById('easy_testArea');
+  container.innerHTML = '';
+  questions = shuffle(questions);
+
+  questions.forEach((item, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'question';
+    div.id = 'easy_q' + idx;
+
+    const answers = [];
+    const correct = item.T[Math.floor(Math.random() * item.T.length)];
+    answers.push({ text: correct, correct: true });
+
+    const incorrect = shuffle(item.F).slice(0,3);
+    incorrect.forEach(f=>answers.push({ text: f, correct:false }));
+
+    const final = shuffle(answers);
+
+    let html = `<b>${idx+1}. ${item.q}</b><br><br>`;
+    final.forEach((a,i)=>{
+      html += `<label><input type="radio" name="easy_q${idx}" value="${a.correct}"> ${a.text}</label>`;
+    });
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+}
+
+function easy_gradeTest(){
+  const boxes = document.querySelectorAll('#easy_testArea .question');
+  let correct = 0;
+  boxes.forEach((box,i)=>{
+    const radios = document.getElementsByName('easy_q'+i);
+    let found = false;
+    for(let r of radios){
+      if(r.checked){
+        found = true;
+        if(r.value === 'true') correct++;
+        else box.classList.add('incorrect');
+      }
+    }
+    if(!found) box.classList.add('incorrect');
+  });
+  document.getElementById('easy_score').innerText = `Scor: ${correct} / ${boxes.length}`;
+}
+
+/* ======================================================
+   HARD module (T/F -> choose 5 options)
+   ====================================================== */
+let hard_score = 0;
+let hard_total = 0;
+let hard_current = null;
+let hard_currentAnswers = [];
+
+function hard_reset(){
+  hard_score = 0; hard_total = 0; hard_current = null; hard_currentAnswers = [];
+  document.getElementById('hard_score').innerText = '';
+  document.getElementById('hard_qtext').innerText = 'Apasă HIT ME pentru a începe';
+  document.getElementById('hard_answers').innerHTML = '';
+  document.querySelector('#hardMode .card'); // noop
+}
+
+function hard_nextQuestion(){
+  if(!hard_data || hard_data.length===0){
+    alert('Nu sunt întrebări HARD definite. Adaugă în hard_data.');
+    return;
+  }
+  hard_current = hard_data[Math.floor(Math.random()*hard_data.length)];
+
+  // combine T and F
+  let answers = [];
+  hard_current.T.forEach(t => answers.push({t, c:true}));
+  hard_current.F.forEach(f => answers.push({t:f, c:false}));
+
+  answers = shuffle(answers);
+  // ensure exactly 5 options: if not enough, pad with non-correct placeholders (rare)
+  if(answers.length < 5){
+    while(answers.length < 5) answers.push({t:'(fără opțiune suplimentară)', c:false});
+  }
+  hard_currentAnswers = answers.slice(0,5);
+
+  // render
+  document.getElementById('hard_qtext').innerText = hard_current.q;
+  const area = document.getElementById('hard_answers');
+  area.innerHTML = '';
+  hard_currentAnswers.forEach((ans, idx)=>{
+    area.innerHTML += `<label><input type="checkbox" class="hardChk" value="${idx}"> ${ans.t}</label>`;
+  });
+  document.getElementById('hard_score').innerText = `Scor curent: ${hard_score} / ${hard_total}`;
+}
+
+function hard_checkAnswer(){
+  if(!hard_currentAnswers || hard_currentAnswers.length===0) return;
+  const chosen = Array.from(document.querySelectorAll('.hardChk:checked')).map(x=>parseInt(x.value,10));
+  let ok = true;
+  hard_currentAnswers.forEach((ans, idx)=>{
+    const checked = chosen.includes(idx);
+    if(ans.c && !checked) ok = false;
+    if(!ans.c && checked) ok = false;
+  });
+  hard_total++;
+  if(ok) hard_score++; else document.querySelector('#hardMode .card').classList.add('incorrect');
+
+  // highlight correct answers
+  document.querySelectorAll('.hardChk').forEach((chk, idx)=>{
+    if(hard_currentAnswers[idx].c) chk.parentElement.classList.add('correct-answer');
+  });
+
+  document.getElementById('hard_score').innerText = `Scor curent: ${hard_score} / ${hard_total}`;
+}
+
+function hard_stop(){
+  document.getElementById('hard_score').innerHTML = `<b>Scor final: ${hard_score} / ${hard_total}</b>`;
+}
+
+/* ======================================================
+   MATCH module (groups)
+   ====================================================== */
+let match_score = 0;
+let match_total = 0;
+let match_current = null;
+
+function match_reset(){
+  match_score = 0; match_total = 0; match_current = null;
+  document.getElementById('match_score').innerText = '';
+  document.getElementById('match_qtitle').innerText = 'Apasă HIT ME pentru a începe';
+  document.getElementById('match_taskArea').style.display = 'none';
+}
+
+function match_nextQuestion(){
+  // prepare pools
+  const groups = match_groups;
+  const allNames = groups.map(g=>g.name);
+  const allExamples = [].concat(...groups.map(g=>g.examples));
+  const allLetters = groups.map(g=>g.letter);
+
+  match_current = groups[Math.floor(Math.random()*groups.length)];
+
+  // render
+  document.getElementById('match_qtitle').innerHTML = `Ce corespunde grupei: <b>${match_current.letter}</b>`;
+  document.getElementById('match_taskArea').style.display = 'block';
+
+  // populate name select
+  const nameSel = document.getElementById('match_pickName');
+  nameSel.innerHTML = '';
+  shuffle(allNames).forEach(n => {
+    const opt = document.createElement('option'); opt.textContent = n; nameSel.appendChild(opt);
+  });
+
+  // populate examples (checkboxes) — random pool from allExamples
+  const exList = document.getElementById('match_exampleList');
+  exList.innerHTML = '';
+  shuffle(allExamples).slice(0, Math.max(10, allExamples.length)).forEach(ex=>{
+    const lbl = document.createElement('label');
+    lbl.innerHTML = `<input type="checkbox" class="matchEx" value="${ex}"> ${ex}`;
+    exList.appendChild(lbl);
+  });
+
+  // compat list
+  const compList = document.getElementById('match_compatList');
+  compList.innerHTML = '';
+  shuffle(allLetters).forEach(l=>{
+    const lbl = document.createElement('label');
+    lbl.innerHTML = `<input type="checkbox" class="matchComp" value="${l}"> ${l}`;
+    compList.appendChild(lbl);
+  });
+
+  document.getElementById('match_score').innerText = `Scor curent: ${match_score} / ${match_total}`;
+}
+
+function match_checkAnswer(){
+  if(!match_current) return;
+  const chosenName = document.getElementById('match_pickName').value;
+  const chosenExamples = Array.from(document.querySelectorAll('.matchEx:checked')).map(x=>x.value);
+  const chosenComp = Array.from(document.querySelectorAll('.matchComp:checked')).map(x=>x.value);
+
+  let isCorrect = true;
+  if(chosenName !== match_current.name) isCorrect = false;
+
+  // examples: must match exactly the group's examples (user must select all and only those)
+  // but many groups have many examples; to be reasonable, check that user selects ALL examples that *exist* in group
+  match_current.examples.forEach(e=>{
+    if(!chosenExamples.includes(e)) isCorrect = false;
+  });
+  // also ensure no extra examples from other groups:
+  chosenExamples.forEach(e=>{
+    if(!match_current.examples.includes(e)) isCorrect = false;
+  });
+
+  // compat exact match
+  match_current.compatible.forEach(c=>{ if(!chosenComp.includes(c)) isCorrect=false; });
+  chosenComp.forEach(c=>{ if(!match_current.compatible.includes(c)) isCorrect=false; });
+
+  match_total++;
+  if(isCorrect) match_score++; else document.querySelector('#matchMode .card').classList.add('incorrect');
+
+  // highlight corrects
+  // name
+  const nameSel = document.getElementById('match_pickName');
+  Array.from(nameSel.options).forEach(opt=>{ if(opt.textContent===match_current.name) opt.style.fontWeight='700'; });
+
+  // examples
+  document.querySelectorAll('.matchEx').forEach(ch=>{
+    if(match_current.examples.includes(ch.value)) ch.parentElement.classList.add('correct-answer');
+  });
+  // compat
+  document.querySelectorAll('.matchComp').forEach(ch=>{
+    if(match_current.compatible.includes(ch.value)) ch.parentElement.classList.add('correct-answer');
+  });
+
+  document.getElementById('match_score').innerText = `Scor curent: ${match_score} / ${match_total}`;
+}
+
+function match_stop(){
+  document.getElementById('match_score').innerHTML = `<b>Scor final: ${match_score} / ${match_total}</b>`;
+}
+
+/* =========================
+   Initialize menu visible
+   ========================= */
+backToMenu();
+
+</script>
+</body>
+</html>
